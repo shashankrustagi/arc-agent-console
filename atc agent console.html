@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+<title>ATC Agent Console</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap');
+
+  :root {
+    color-scheme: light;
+    --page:        #f9f9f7;
+    --surface:     #fcfcfb;
+    --surface-2:   #f2f1ec;
+    --ink:         #0b0b0b;
+    --ink-2:       #52514e;
+    --muted:       #898781;
+    --grid:        #e1e0d9;
+    --border:      rgba(11,11,11,0.10);
+    --accent:      #2a78d6;
+    --accent-tint: #e7f0fb;
+    --accent-ink:  #ffffff;
+    --amber:       #eb6834;
+    --teal:        #1baf7a;
+    --good:        #0ca30c;
+    --good-tint:   #e6f6e6;
+    --warning:     #fab219;
+    --warning-tint:#fff6e0;
+    --critical:    #d03b3b;
+    --critical-tint:#fbe9e9;
+    --font-display: 'IBM Plex Sans', system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --page:        #0d0d0d;
+      --surface:     #1a1a19;
+      --surface-2:   #232321;
+      --ink:         #ffffff;
+      --ink-2:       #c3c2b7;
+      --muted:       #898781;
+      --grid:        #2c2c2a;
+      --border:      rgba(255,255,255,0.10);
+      --accent:      #3987e5;
+      --accent-tint: #17263a;
+      --accent-ink:  #ffffff;
+      --amber:       #d95926;
+      --teal:        #199e70;
+      --good:        #0ca30c;
+      --good-tint:   #10240f;
+      --warning:     #fab219;
+      --warning-tint:#2b2109;
+      --critical:    #e66767;
+      --critical-tint:#2c1414;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page:        #0d0d0d;
+    --surface:     #1a1a19;
+    --surface-2:   #232321;
+    --ink:         #ffffff;
+    --ink-2:       #c3c2b7;
+    --muted:       #898781;
+    --grid:        #2c2c2a;
+    --border:      rgba(255,255,255,0.10);
+    --accent:      #3987e5;
+    --accent-tint: #17263a;
+    --accent-ink:  #ffffff;
+    --amber:       #d95926;
+    --teal:        #199e70;
+    --good:        #0ca30c;
+    --good-tint:   #10240f;
+    --warning:     #fab219;
+    --warning-tint:#2b2109;
+    --critical:    #e66767;
+    --critical-tint:#2c1414;
+  }
+
+  * { box-sizing: border-box; }
+  body { background: var(--page); color: var(--ink); font-family: var(--font-display); line-height: 1.45; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 20px 20px 48px; }
+  .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+  /* header */
+  .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+  .brand { display: flex; flex-direction: column; gap: 2px; }
+  .brand .eyebrow { font-size: 11px; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; text-transform: uppercase; }
+  .brand h1 { font-size: 20px; margin: 0; font-weight: 700; }
+  .live-pill { display: flex; align-items: center; gap: 7px; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 600; color: var(--ink-2); }
+  .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 0 rgba(12,163,12,.6); animation: pulse 1.6s infinite; }
+  .live-dot.paused { background: var(--muted); animation: none; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(12,163,12,.55);} 70% { box-shadow: 0 0 0 7px rgba(12,163,12,0);} 100% { box-shadow: 0 0 0 0 rgba(12,163,12,0);} }
+
+  .controls { display: flex; gap: 8px; align-items: center; }
+  button.ctrl {
+    font-family: var(--font-display); font-weight: 600; font-size: 12.5px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--surface); color: var(--ink);
+    border-radius: 8px; padding: 8px 14px; display: flex; align-items: center; gap: 6px;
+  }
+  button.ctrl:hover { background: var(--surface-2); }
+  button.ctrl.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+  button.ctrl.primary:hover { opacity: .9; }
+
+  /* stat row */
+  .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+  .stat-tile { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+  .stat-tile .stat-label { font-size: 11.5px; color: var(--ink-2); margin-bottom: 6px; }
+  .stat-tile .stat-value { font-size: 24px; font-weight: 700; }
+
+  /* main grid */
+  .main-grid { display: grid; grid-template-columns: 1.05fr 1fr; gap: 18px; align-items: start; }
+
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px; }
+  .panel h2 { font-size: 13px; margin: 0 0 14px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 700; }
+
+  .orch {
+    background: var(--accent-tint); border: 1px solid var(--border); border-radius: 12px;
+    padding: 12px 16px; text-align: center; margin-bottom: 10px; position: relative; transition: box-shadow .2s ease;
+  }
+  .orch .o-title { font-weight: 700; font-size: 13.5px; }
+  .orch .o-sub { font-size: 11.5px; color: var(--ink-2); font-family: var(--font-mono); min-height: 14px; margin-top: 2px; }
+  .orch.active { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent); }
+
+  .exception-line { text-align: center; font-size: 11px; color: var(--muted); margin-bottom: 12px; }
+  .exception-line .human-flag { color: var(--warning); font-weight: 700; display: none; }
+  .exception-line .human-flag.show { display: inline; }
+
+  .agent-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .agent-card {
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 12px;
+    display: flex; flex-direction: column; gap: 6px; position: relative; transition: box-shadow .2s ease, border-color .2s ease;
+    min-height: 118px;
+  }
+  .agent-card.active { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+  .agent-card h4 { font-size: 12.5px; margin: 0; display: flex; align-items: center; gap: 6px; }
+  .agent-card .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); flex: none; }
+  .agent-card.active .dot { background: var(--good); animation: pulse 1.2s infinite; }
+  .agent-card .status-line { font-size: 11px; color: var(--ink-2); font-family: var(--font-mono); min-height: 28px; }
+  .agent-card .src { font-size: 10.5px; color: var(--muted); font-family: var(--font-mono); border-top: 1px dashed var(--grid); padding-top: 6px; margin-top: auto; }
+  .dots span { animation: blink 1s infinite; }
+  .dots span:nth-child(2) { animation-delay: .2s; }
+  .dots span:nth-child(3) { animation-delay: .4s; }
+  @keyframes blink { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+
+  .guardrail-strip { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 14px; }
+  .g-chip { background: var(--surface-2); border: 1px solid var(--border); border-radius: 9px; padding: 9px 8px; text-align: center; transition: box-shadow .2s ease, background .2s ease; }
+  .g-chip .g-name { font-size: 9.5px; font-weight: 700; color: var(--ink-2); text-transform: uppercase; letter-spacing: .02em; white-space: nowrap; }
+  .g-chip .g-count { font-family: var(--font-mono); font-weight: 700; font-size: 16px; margin-top: 3px; }
+  .g-chip.flash-block { background: var(--critical-tint); box-shadow: 0 0 0 2px var(--critical); }
+  .g-chip.flash-pass { background: var(--good-tint); box-shadow: 0 0 0 2px var(--good); }
+
+  /* log */
+  .log-panel { max-height: 640px; display: flex; flex-direction: column; }
+  .log-list { overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px; max-height: 600px; }
+  .log-entry {
+    border: 1px solid var(--border); border-left: 3px solid var(--muted); border-radius: 8px;
+    padding: 10px 12px; background: var(--surface-2); animation: enter .25s ease;
+  }
+  @keyframes enter { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+  .log-entry.allowed { border-left-color: var(--good); }
+  .log-entry.blocked { border-left-color: var(--critical); }
+  .log-entry.escalated { border-left-color: var(--warning); }
+  .log-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 4px; }
+  .log-time { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted); white-space: nowrap; }
+  .log-req { font-size: 12.5px; font-weight: 600; }
+  .log-decision { font-size: 12px; color: var(--ink-2); margin-top: 3px; }
+  .log-meta { display: flex; gap: 6px; margin-top: 7px; flex-wrap: wrap; }
+  .tag { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px; letter-spacing: .02em; }
+  .tag.channel { background: var(--surface); color: var(--ink-2); border: 1px solid var(--border); }
+  .tag.agent { background: var(--accent-tint); color: var(--accent); }
+  .tag.outcome-allowed { background: var(--good-tint); color: var(--good); }
+  .tag.outcome-blocked { background: var(--critical-tint); color: var(--critical); }
+  .tag.outcome-escalated { background: var(--warning-tint); color: color-mix(in srgb, var(--warning) 55%, var(--ink)); }
+  .log-empty { text-align: center; color: var(--muted); font-size: 12.5px; padding: 40px 0; }
+
+  .footer-note { margin-top: 18px; font-size: 11.5px; color: var(--muted); text-align: center; }
+
+  @media (max-width: 920px) {
+    .main-grid { grid-template-columns: 1fr; }
+    .stat-row { grid-template-columns: repeat(2, 1fr); }
+    .agent-row, .guardrail-strip { grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (max-width: 560px) {
+    .agent-row, .guardrail-strip { grid-template-columns: repeat(2, 1fr); }
+    .stat-row { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+
+<div class="wrap">
+  <div class="topbar">
+    <div class="brand">
+      <span class="eyebrow">Available-to-Commerce · Batch 04</span>
+      <h1>Agent console — live simulation</h1>
+    </div>
+    <div class="controls">
+      <span class="live-pill"><span class="live-dot" id="liveDot"></span><span id="liveLabel">Running</span></span>
+      <button class="ctrl" id="stepBtn">Step ▸</button>
+      <button class="ctrl primary" id="playBtn">Pause ❚❚</button>
+      <button class="ctrl" id="resetBtn">Reset</button>
+    </div>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-tile"><div class="stat-label">Requests processed</div><div class="stat-value num" id="statProcessed">0</div></div>
+    <div class="stat-tile"><div class="stat-label">Allowed</div><div class="stat-value num" style="color:var(--good)" id="statAllowed">0</div></div>
+    <div class="stat-tile"><div class="stat-label">Guardrail blocks</div><div class="stat-value num" style="color:var(--critical)" id="statBlocked">0</div></div>
+    <div class="stat-tile"><div class="stat-label">Escalated to human</div><div class="stat-value num" style="color:var(--warning)" id="statEscalated">0</div></div>
+  </div>
+
+  <div class="main-grid">
+    <div>
+      <div class="panel">
+        <h2>Agent layer</h2>
+        <div class="orch" id="orchCard">
+          <div class="o-title">Orchestrator</div>
+          <div class="o-sub" id="orchStatus">Routes each request to the right agent</div>
+        </div>
+        <div class="exception-line">Exceptions → <span class="human-flag" id="humanFlag">HUMAN REVIEW</span><span id="exceptionDefault">human (e.g. releasing reserve stock)</span></div>
+
+        <div class="agent-row">
+          <div class="agent-card" id="card-availability">
+            <h4><span class="dot"></span>Availability agent</h4>
+            <div class="status-line" id="status-availability">Idle — waiting for a request</div>
+            <div class="src">→ Live ATC service</div>
+          </div>
+          <div class="agent-card" id="card-policy">
+            <h4><span class="dot"></span>Policy agent (RAG)</h4>
+            <div class="status-line" id="status-policy">Idle — waiting for a request</div>
+            <div class="src">→ Policy documents</div>
+          </div>
+          <div class="agent-card" id="card-promise">
+            <h4><span class="dot"></span>Promise agent</h4>
+            <div class="status-line" id="status-promise">Idle — waiting for a request</div>
+            <div class="src">→ DC &amp; store capacity</div>
+          </div>
+        </div>
+
+        <div class="guardrail-strip">
+          <div class="g-chip" id="g-1"><div class="g-name">01 Access</div><div class="g-count num">0</div></div>
+          <div class="g-chip" id="g-2"><div class="g-name">02 Output</div><div class="g-count num">0</div></div>
+          <div class="g-chip" id="g-3"><div class="g-name">03 Actions</div><div class="g-count num">0</div></div>
+          <div class="g-chip" id="g-4"><div class="g-name">04 Freshness</div><div class="g-count num">0</div></div>
+          <div class="g-chip" id="g-5"><div class="g-name">05 Audit</div><div class="g-count num">0</div></div>
+        </div>
+      </div>
+      <p class="footer-note">Rules engine executes — agents only propose. Simulation cycles through representative requests from the Available-to-Commerce case; no live inventory system is connected.</p>
+    </div>
+
+    <div class="panel log-panel">
+      <h2>Decision log</h2>
+      <div class="log-list" id="logList">
+        <div class="log-empty" id="logEmpty">Waiting for the first request…</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var rnd = function (n) { return Math.floor(Math.random() * n); };
+  var pad = function (n) { return n < 10 ? '0' + n : '' + n; };
+  var skus = ['SKU-1042', 'SKU-2077', 'SKU-3316', 'SKU-4459', 'SKU-5081'];
+
+  function scenarios() {
+    var sku = skus[rnd(skus.length)];
+    var ord = 100 + rnd(900);
+    return [
+      {
+        channel: 'Own site', agent: 'availability',
+        req: 'Own-site shopper checks ' + sku + ' at DC East',
+        dataStatus: 'Calling live ATC service…',
+        decision: 'ATC = 350 → shown in full to own-site channel',
+        agentDone: 'Returned ATC 350 for DC East',
+        outcome: 'allowed', guardrail: null, promiseFollow: {
+          agent: 'promise', status: 'Checking DC East capacity (220 delivery/day)…',
+          decision: '"Ships today" — order within the 220-order window', outcome: 'allowed'
+        }
+      },
+      {
+        channel: 'Marketplace', agent: 'availability',
+        req: 'Marketplace requests 240 units of ' + sku + ' from DC stock',
+        dataStatus: 'Calling live ATC service…',
+        decision: 'Request exceeds the ~30% marketplace cap (~165 units)',
+        agentDone: 'DC ATC available, but allocation capped for this channel',
+        outcome: 'blocked', guardrail: 2,
+        logDecision: 'Output validator capped the allocation at ~165 units instead of 240'
+      },
+      {
+        channel: 'Marketplace', agent: 'policy',
+        req: 'Marketplace asks “why can’t I see the wholesale reserve?”',
+        dataStatus: 'Retrieving channel allocation & wholesale contract terms…',
+        decision: 'Wholesale reserve (120 units) is never visible outside the wholesale channel',
+        agentDone: 'Answered from policy documents',
+        outcome: 'allowed', guardrail: 1,
+        logDecision: 'Channel filter confirmed: reserve stays hidden from marketplace'
+      },
+      {
+        channel: 'Own site', agent: 'availability',
+        req: 'Pickup lookup for Store B, order #' + ord,
+        dataStatus: 'Calling live ATC service…',
+        decision: 'Store B ATC = 1, below the minimum-2 display threshold',
+        agentDone: 'Store hidden — ATC below safe-display floor',
+        outcome: 'blocked', guardrail: 4,
+        logDecision: 'Store B suppressed rather than risking a stale-data oversell'
+      },
+      {
+        channel: 'Internal', agent: 'human',
+        req: 'Planner requests releasing 50 units from the wholesale reserve',
+        dataStatus: 'Orchestrator flags this as an exception…',
+        decision: 'Changing the wholesale reserve needs human approval',
+        agentDone: null,
+        outcome: 'escalated', guardrail: 3,
+        logDecision: 'Routed to a human planner instead of auto-approving'
+      },
+      {
+        channel: 'Own site', agent: 'promise',
+        req: 'Delivery promise requested for DC West, order #' + ord,
+        dataStatus: 'Reading DC West capacity (140 delivery/day)…',
+        decision: '“Ships today” — within today’s 140-order capacity',
+        agentDone: 'min(ATC, capacity) = ships today',
+        outcome: 'allowed', guardrail: null
+      },
+      {
+        channel: 'Own site', agent: 'promise',
+        req: 'Pickup request at Store A: 20 units, order #' + ord,
+        dataStatus: 'Reading Store A pickup slots (18 today)…',
+        decision: 'First 18 units "ready today"; remaining 2 shift to next day',
+        agentDone: 'Sellable = min(ATC, slots left) = 18',
+        outcome: 'allowed', guardrail: null
+      },
+      {
+        channel: 'System', agent: 'availability',
+        req: 'Inventory feed for Store B is 74 seconds old',
+        dataStatus: 'Checking data freshness…',
+        decision: 'Feed older than 60s → fall back to "next day" and hide the store',
+        agentDone: 'Freshness check failed',
+        outcome: 'blocked', guardrail: 4,
+        logDecision: 'Stale feed caught before it could reach a shopper'
+      },
+      {
+        channel: 'Marketplace', agent: 'availability',
+        req: 'Marketplace requests ' + sku + ' beyond DC ATC + capacity',
+        dataStatus: 'Calling live ATC service…',
+        decision: 'Promise above min(ATC, capacity) rejected',
+        agentDone: 'Validator blocked the overpromise',
+        outcome: 'blocked', guardrail: 2,
+        logDecision: 'No promise issued beyond what DC East/West can actually ship'
+      },
+      {
+        channel: 'Internal', agent: 'policy',
+        req: 'Audit query: why was order #' + ord + ' marked "ships next day"?',
+        dataStatus: 'Reading the decision log…',
+        decision: 'Logged: DC capacity exhausted for today, rule 5 (service promise) applied',
+        agentDone: 'Answered with the exact rule that fired',
+        outcome: 'allowed', guardrail: 5,
+        logDecision: 'Every decision traceable to the rule that triggered it'
+      }
+    ];
+  }
+
+  var agentLabel = { availability: 'Availability agent', policy: 'Policy agent', promise: 'Promise agent', human: 'Human review' };
+  var guardrailName = { 1: 'Access', 2: 'Output check', 3: 'Actions', 4: 'Freshness', 5: 'Audit' };
+
+  var state = { processed: 0, allowed: 0, blocked: 0, escalated: 0, guardrails: {1:0,2:0,3:0,4:0,5:0} };
+  var running = true;
+  var timer = null;
+  var busy = false;
+
+  var el = {
+    playBtn: document.getElementById('playBtn'),
+    stepBtn: document.getElementById('stepBtn'),
+    resetBtn: document.getElementById('resetBtn'),
+    liveDot: document.getElementById('liveDot'),
+    liveLabel: document.getElementById('liveLabel'),
+    orchCard: document.getElementById('orchCard'),
+    orchStatus: document.getElementById('orchStatus'),
+    humanFlag: document.getElementById('humanFlag'),
+    exceptionDefault: document.getElementById('exceptionDefault'),
+    logList: document.getElementById('logList'),
+    logEmpty: document.getElementById('logEmpty'),
+    statProcessed: document.getElementById('statProcessed'),
+    statAllowed: document.getElementById('statAllowed'),
+    statBlocked: document.getElementById('statBlocked'),
+    statEscalated: document.getElementById('statEscalated')
+  };
+
+  function setAgentStatus(agent, text, active) {
+    if (agent === 'human') return;
+    var card = document.getElementById('card-' + agent);
+    var status = document.getElementById('status-' + agent);
+    if (!card) return;
+    status.textContent = text;
+    card.classList.toggle('active', !!active);
+  }
+
+  function resetAgentCards() {
+    ['availability', 'policy', 'promise'].forEach(function (a) {
+      setAgentStatus(a, 'Idle — waiting for a request', false);
+    });
+  }
+
+  function flashGuardrail(n, kind) {
+    if (!n) return;
+    var chip = document.getElementById('g-' + n);
+    chip.classList.add(kind === 'blocked' ? 'flash-block' : 'flash-pass');
+    setTimeout(function () { chip.classList.remove('flash-block', 'flash-pass'); }, 900);
+  }
+
+  function bumpGuardrail(n) {
+    if (!n) return;
+    state.guardrails[n]++;
+    document.querySelector('#g-' + n + ' .g-count').textContent = state.guardrails[n];
+  }
+
+  function timeNow(offsetSeconds) {
+    var d = new Date(Date.now() - (offsetSeconds || 0) * 1000);
+    return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+  }
+
+  function addLogEntry(sc, finalOutcome, decisionText, ageSeconds, append) {
+    if (el.logEmpty) { el.logEmpty.remove(); el.logEmpty = null; }
+    var entry = document.createElement('div');
+    entry.className = 'log-entry ' + finalOutcome;
+    var outcomeLabel = finalOutcome === 'allowed' ? 'Allowed' : (finalOutcome === 'blocked' ? 'Blocked' : 'Escalated');
+    entry.innerHTML =
+      '<div class="log-head"><div class="log-req">' + sc.req + '</div><div class="log-time">' + timeNow(ageSeconds) + '</div></div>' +
+      '<div class="log-decision">' + decisionText + '</div>' +
+      '<div class="log-meta">' +
+        '<span class="tag channel">' + sc.channel + '</span>' +
+        '<span class="tag agent">' + agentLabel[sc.agent] + '</span>' +
+        (sc.guardrail ? '<span class="tag agent">Guardrail ' + sc.guardrail + ' · ' + guardrailName[sc.guardrail] + '</span>' : '') +
+        '<span class="tag outcome-' + finalOutcome + '">' + outcomeLabel + '</span>' +
+      '</div>';
+    if (append) el.logList.appendChild(entry);
+    else el.logList.insertBefore(entry, el.logList.firstChild);
+    while (el.logList.children.length > 30) {
+      el.logList.removeChild(el.logList.lastChild);
+    }
+  }
+
+  function updateStats() {
+    el.statProcessed.textContent = state.processed;
+    el.statAllowed.textContent = state.allowed;
+    el.statBlocked.textContent = state.blocked;
+    el.statEscalated.textContent = state.escalated;
+  }
+
+  function runCycle(done) {
+    var pool = scenarios();
+    var sc = pool[rnd(pool.length)];
+
+    el.orchCard.classList.add('active');
+    el.orchStatus.textContent = 'Routing: "' + sc.req + '"';
+
+    if (sc.agent === 'human') {
+      el.humanFlag.classList.add('show');
+      el.exceptionDefault.style.display = 'none';
+    }
+
+    setTimeout(function () {
+      if (sc.agent !== 'human') {
+        setAgentStatus(sc.agent, sc.dataStatus, true);
+      }
+
+      setTimeout(function () {
+        if (sc.agent !== 'human') {
+          setAgentStatus(sc.agent, sc.agentDone || sc.decision, false);
+        }
+        el.orchCard.classList.remove('active');
+        el.orchStatus.textContent = 'Routes each request to the right agent';
+        if (sc.agent === 'human') {
+          setTimeout(function () { el.humanFlag.classList.remove('show'); el.exceptionDefault.style.display = 'inline'; }, 700);
+        }
+
+        var finish = function (finalOutcome) {
+          state.processed++;
+          if (finalOutcome === 'allowed') state.allowed++;
+          else if (finalOutcome === 'blocked') state.blocked++;
+          else state.escalated++;
+          bumpGuardrail(sc.guardrail);
+          flashGuardrail(sc.guardrail, finalOutcome === 'blocked' ? 'blocked' : 'pass');
+          addLogEntry(sc, finalOutcome, sc.logDecision || sc.decision);
+          updateStats();
+          done();
+        };
+
+        if (sc.promiseFollow) {
+          setAgentStatus('promise', sc.promiseFollow.status, true);
+          setTimeout(function () {
+            setAgentStatus('promise', sc.promiseFollow.decision, false);
+            finish(sc.promiseFollow.outcome);
+          }, 650);
+        } else {
+          finish(sc.outcome);
+        }
+      }, 750);
+    }, 450);
+  }
+
+  var nextDelay = 500;
+  function scheduleNext() {
+    if (!running) return;
+    timer = setTimeout(function () {
+      if (!running) return;
+      busy = true;
+      runCycle(function () { busy = false; scheduleNext(); });
+    }, nextDelay);
+    nextDelay = 1500;
+  }
+
+  // Open with a realistic working state: a short backlog of decisions already handled.
+  function seedHistory() {
+    var pool = scenarios();
+    var seedOrder = [0, 2, 3, 9, 1, 4];
+    seedOrder.forEach(function (i, n) {
+      var sc = pool[i];
+      var outcome = sc.promiseFollow ? sc.promiseFollow.outcome : sc.outcome;
+      state.processed++;
+      if (outcome === 'allowed') state.allowed++;
+      else if (outcome === 'blocked') state.blocked++;
+      else state.escalated++;
+      bumpGuardrail(sc.guardrail);
+      addLogEntry(sc, outcome, sc.logDecision || sc.decision, (n + 1) * 9 + rnd(5), true);
+    });
+    setAgentStatus('availability', 'Last: returned ATC 350 for DC East', false);
+    setAgentStatus('policy', 'Last: answered from policy documents', false);
+    setAgentStatus('promise', 'Last: min(ATC, capacity) = ships today', false);
+    updateStats();
+  }
+
+  el.playBtn.addEventListener('click', function () {
+    running = !running;
+    el.playBtn.textContent = running ? 'Pause ❚❚' : 'Play ▸';
+    el.liveLabel.textContent = running ? 'Running' : 'Paused';
+    el.liveDot.classList.toggle('paused', !running);
+    if (running && !busy) scheduleNext();
+    else if (timer) clearTimeout(timer);
+  });
+
+  el.stepBtn.addEventListener('click', function () {
+    if (busy) return;
+    busy = true;
+    if (timer) clearTimeout(timer);
+    runCycle(function () { busy = false; if (running) scheduleNext(); });
+  });
+
+  el.resetBtn.addEventListener('click', function () {
+    if (timer) clearTimeout(timer);
+    state = { processed: 0, allowed: 0, blocked: 0, escalated: 0, guardrails: {1:0,2:0,3:0,4:0,5:0} };
+    [1,2,3,4,5].forEach(function (n) { document.querySelector('#g-' + n + ' .g-count').textContent = '0'; });
+    el.logList.innerHTML = '<div class="log-empty" id="logEmpty">Waiting for the first request…</div>';
+    el.logEmpty = document.getElementById('logEmpty');
+    resetAgentCards();
+    updateStats();
+    if (running) { busy = false; scheduleNext(); }
+  });
+
+  seedHistory();
+  scheduleNext();
+})();
+</script>
+
+</body>
+</html>
